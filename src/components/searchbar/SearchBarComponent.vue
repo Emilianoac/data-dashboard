@@ -1,18 +1,9 @@
 <script lang="ts" setup>
-import { ref } from "vue";
+import { useSearchStore } from "@/stores/search";
 import IconSearch from "@/components/icons/IconSearch.vue";
 import SearchBarResultComponent from "@/components/searchbar/SearchBarResultComponent.vue";
 
-const search = ref<string>("");
-const showResults = ref<boolean>(false);
-
-function handleInput() {
-showResults.value = !!search.value;
-}
-
-function closeResults() {
-showResults.value = false;
-}
+const searchStore = useSearchStore();
 </script>
 
 <template>
@@ -20,23 +11,19 @@ showResults.value = false;
     <div class="searchbar-input-container">
       <IconSearch class="searchbar-input-icon" :width="20" :height="20" />
       <input
-        v-model="search"
+        v-model="searchStore.query"
         class="searchbar-input-field"
         type="text"
         placeholder="Buscar un instrumento"
-        @input="handleInput"
+        @input="searchStore.setShowResults(!!searchStore.query)"
       />
     </div>
-    <SearchBarResultComponent
-      :search="search"
-      :show-results="showResults"
-      @update:show-results="(value) => showResults = value"
-    />
+    <SearchBarResultComponent/>
   </div>
   <div
-    v-if="showResults"
+    v-if="searchStore.showResults"
     class="searchbar-overlay"
-    @click="closeResults"
+    @click="searchStore.setShowResults(false)"
   ></div>
 </template>
 

@@ -1,70 +1,20 @@
 <script lang="ts" setup>
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted, reactive } from "vue";
 import { useDark } from "@vueuse/core";
+import { useChartStore } from "@/stores/chart";
 import { useAppStore } from "@/stores/app";
-import ErrorAlertComponent from "@/components/ErrorAlertComponent.vue";
+import es from "apexcharts/dist/locales/es.json";
 
 const appStore = useAppStore();
-
-async function getChartData() {
-  await appStore.getConstituentHistory();
-}
-
-getChartData();
-
+const chartStore = useChartStore();
 const isDark = useDark();
 const chart = ref();
-const filters = { "1d": "1D", "1s": "1S", "1m": "1M", "3m": "3M", "6m": "6M", "1y": "1Y", "5y": "5Y"};
-const minDataPoints = 2;
-
-const filterDataByTimeRange = computed(() => {
-
-  const endDate = new Date();
-  const startDate = new Date();
-
-  switch (appStore.currentChartFilter) {
-    case "1d":
-      startDate.setDate(endDate.getDate() - 1);
-      break;
-    case "1s":
-      startDate.setDate(endDate.getDate() - 7);
-      break;
-    case "1m":
-      startDate.setMonth(endDate.getMonth() - 1);
-      break;
-    case "3m":
-      startDate.setMonth(endDate.getMonth() - 3);
-      break;
-    case "6m":
-      startDate.setMonth(endDate.getMonth() - 6);
-      break;
-    case "1y":
-      startDate.setFullYear(endDate.getFullYear() - 1);
-      break;
-    case "5y":
-      startDate.setFullYear(endDate.getFullYear() - 5);
-      break;
-  }
-
-  if (!appStore.formatedChartData) return [];
-
-  const filteredData = appStore.formatedChartData.filter((entry) => {
-    const entryDate = new Date(entry.timestamp);
-    return entryDate >= startDate && entryDate <= endDate;
-  }).map((entry) => [new Date(entry.timestamp).getTime(), entry.value]);
-
-  if (filteredData.length < minDataPoints) {
-    appStore.setError({ status: true, message: "No hay suficientes datos para mostrar en este rango de tiempo." });
-    appStore.setChartFilter("1y");
-    return;
-  }
-
-  return filteredData;
-});
 
 const baseChartOptions = {
   chart: {
     id: "app-chart",
+    locales: [es],
+    defaultLocale: "es",
     toolbar: { show: false },
     zoom: { enabled: false },
     background: "transparent",
@@ -74,7 +24,7 @@ const baseChartOptions = {
   stroke: { curve: "smooth", width: 1 },
 };
 
-const chartOptions = ref({
+const chartOptions = reactive({
   ...baseChartOptions,
   theme: {
     mode: isDark.value ? "dark" : "light",
@@ -82,25 +32,21 @@ const chartOptions = ref({
   },
 });
 
-const series = computed(() => [
-  { name: "valor", data: filterDataByTimeRange.value },
-]);
+const series = computed(() => [{ name: "valor", data: chartStore.chartDataFilteredByTime } ]);
 
+// Change chart theme based on dark mode
 watch(isDark, (value, oldValue) => {
   if (value !== oldValue) {
-    chart.value?.updateOptions({
-      theme: { mode: value ? "dark" : "light" },
-    });
+    chart.value?.updateOptions({ theme: { mode: value ? "dark" : "light" } });
   }
 });
 
-function setFilter(filter: string) {
-  appStore.setChartFilter(filter);
-}
+onMounted(async () => {
+  await appStore.getConstituentHistory();
+});
 </script>
 
 <template>
-  <ErrorAlertComponent v-if="appStore.error?.status" :message="appStore.error.message" />
   <apex-chart
     ref="chart"
     width="100%"
@@ -112,11 +58,16 @@ function setFilter(filter: string) {
 
   <div class="chart-filters">
     <button
-      v-for="(label, filter) in filters"
-      :key="filter"
-      :class="{ 'active': appStore.currentChartFilter === filter }"
-      @click="setFilter(filter)">
-        {{ label }}
+      v-for="(filter) in chartStore.chartFilters"
+      :key="filter.value"
+      :title="filter.enabled ? 'Filtrar por ' + filter.label : 'No hay datos para este rango de tiempo'"
+      @click="filter.enabled && chartStore.setChartFilter(filter.value)"
+      :disabled="!filter.enabled"
+      :class="{ 
+        'active': chartStore.currentChartFilter === filter.value,
+        'disabled': !filter.enabled
+      }">
+        {{ filter.label }}
     </button>
   </div>
 </template>
@@ -138,6 +89,12 @@ function setFilter(filter: string) {
 
   button.active {
     @apply bg-blue-500 text-white;
+  }
+
+  button.disabled {
+    @apply bg-gray-100 dark:bg-gray-600;
+    @apply text-gray-500 dark:text-gray-400;
+    @apply cursor-not-allowed opacity-70;
   }
 }
 </style>
