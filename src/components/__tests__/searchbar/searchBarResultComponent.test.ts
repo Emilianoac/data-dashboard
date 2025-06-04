@@ -1,35 +1,32 @@
-import { mount } from "@vue/test-utils";
-import { describe, it, expect, vi } from "vitest";
+import { mount, VueWrapper } from "@vue/test-utils";
+import { nextTick } from "vue";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import SearchBarResultComponent from "@/components/searchbar/SearchBarResultComponent.vue";
 import { createTestingPinia } from "@pinia/testing";
+import { setActivePinia, createPinia } from "pinia";
+import { useSearchStore } from "@/stores/search";
+
+
+let wrapper: VueWrapper;
 
 describe("SearchBarResultComponent", () => {
-  it("renders correctly when showResults is true", async () => {
-    const wrapper = mount(SearchBarResultComponent, {
-      props: {
-        showResults: true,
-        search: "Test",
-      },
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    wrapper = mount(SearchBarResultComponent, {
       global: {
-        plugins: [createTestingPinia()],
+        plugins: [createPinia()],
       },
     })
+  });
+
+
+  it("should render correctly when showResults is true", async () => {
+    const searchStore = useSearchStore();
+    searchStore.showResults = true;
+
+    await nextTick();
 
     expect(wrapper.find(".searchbar-results").exists()).toBe(true);
-  })
-
-  it("emits update:showResult when search prop changes", async () => {
-    const wrapper = mount(SearchBarResultComponent, {
-      props: {
-        showResults: false,
-        search: "",
-      },
-      global: {
-        plugins: [createTestingPinia()],
-      },
-    })
-
-    await wrapper.setProps({ search: "New Search" });
-    expect(wrapper.emitted("update:showResults")).toBeTruthy();
   })
 })

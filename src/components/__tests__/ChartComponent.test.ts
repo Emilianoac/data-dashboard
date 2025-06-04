@@ -11,42 +11,68 @@ const wrapper = shallowMount(ChartComponent, {
 })
 
 describe("ChartComponent", () => {
-  it("renders the chart and filters correctly", async () => {
+  it("should render the chart and filters correctly", async () => {
 
     expect(wrapper.exists()).toBe(true);
     expect(wrapper.find("apex-chart").exists()).toBe(true);
     expect(wrapper.findAll("button").length).toBeGreaterThan(0);
   });
 
-  it("applies the active class to the selected filter", async () => {
+  it("should apply the active class to the selected filter", async () => {
     const wrapper = shallowMount(ChartComponent, {
       global: {
         plugins: [createTestingPinia({
           initialState: {
-            app: { currentChartFilter: "1m" },
+            app: { currentChartFilter: "1a" },
           },
         })],
       },
     });
 
     const activeButton = wrapper.find("button.active");
-    expect(activeButton.text()).toBe("1M");
+    expect(activeButton.text()).toBe("1A");
   });
 
-    it("displays an error when data is insufficient", async () => {
+  it("should disable the filter when there is not enough data", () => {
+    const mockFilters = [
+      { label: "1D", value: "1d", enabled: false },
+      { label: "1S", value: "1s", enabled: false },
+      { label: "1M", value: "1m", enabled: false },
+      { label: "3M", value: "3m", enabled: false },
+      { label: "6M", value: "6m", enabled: false },
+      { label: "1A", value: "1a", enabled: false },
+      { label: "5A", value: "5a", enabled: false },
+    ];
+
     const wrapper = mount(ChartComponent, {
       global: {
-        plugins: [createTestingPinia({
-          initialState: {
-            app: { formatedChartData: [], currentChartFilter: "1d", error: { status: true, message: "No hay suficientes datos" } },
-          },
-        })],
+        plugins: [
+          createTestingPinia({
+            initialState: {
+              chart: {
+                chartFilters: mockFilters,
+                currentChartFilter: "1d",
+              },
+              app: {
+                formatedChartData: [],
+                error: { status: true, message: "No hay suficientes datos" },
+              },
+            },
+            stubActions: false,
+          }),
+        ],
       },
     });
 
-    expect(wrapper.findComponent({ name: "ErrorAlertComponent" }).exists()).toBe(true);
-    expect(wrapper.find(".alert-danger-text").text()).toBe("No hay suficientes datos");
-  });
+    const filtersContainer = wrapper.find(".chart-filters");
+    const filterButtons = filtersContainer.findAll("button");
 
+    expect(filterButtons.length).toBe(mockFilters.length);
+
+    filterButtons.forEach((btn, i) => {
+      expect(btn.text()).toBe(mockFilters[i].label);
+      expect(btn.attributes("disabled")).toBeDefined();
+    });
+  });
 });
 
